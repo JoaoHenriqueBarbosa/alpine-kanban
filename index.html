@@ -273,14 +273,6 @@
       border-bottom: 1px solid #4d4d4d;
     }
 
-    .card ul li input[type="checkbox"] {
-      margin-right: 8px;
-      accent-color: #1e2f50;
-      width: 12px;
-      height: 13px;
-      flex-shrink: 0;
-    }
-
     .card ul li button.delete-task {
       background: none;
       border: none;
@@ -409,7 +401,7 @@
     }
 
     .modal-content button.cancel {
-      background-color: #3d3d3d;
+      background-color: #272727;
       color: #ffffff;
     }
 
@@ -494,22 +486,72 @@
     .toolbar button[onclick="downloadState()"]:hover,
     .toolbar button[onclick="document.getElementById('uploadInput').click()"],
     .toolbar button[onclick="document.getElementById('uploadInput').click()"]:hover {
-      background-color: #2d2d2d;
+      background-color: #4d4d4d;
     }
 
     .toolbar button:hover {
-      background-color: #3d3d3d;
+      background-color: #4d4d4d;
     }
 
     .outline {
       outline: 2px solid #ffffff;
+    }
+
+    /* Estilo do checkbox customizado */
+    .card ul li input[type="checkbox"] {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border: 2px solid #dddddd;
+      border-radius: 4px;
+      margin-right: 8px;
+      flex-shrink: 0;
+      cursor: pointer;
+      position: relative;
+      background-color: transparent;
+      transition: all 0.2s ease;
+    }
+
+    .card ul li input[type="checkbox"]:hover {
+      border-color: #8b8b8b;
+    }
+
+    .card ul li input[type="checkbox"]:checked {
+      background-color: #dddddd;
+      border-color: #dddddd;
+    }
+
+    .card ul li input[type="checkbox"]:checked::after {
+      content: '';
+      position: absolute;
+      left: 5px;
+      top: 2px;
+      width: 4px;
+      height: 8px;
+      border: solid rgb(0, 0, 0);
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg) translate(-2px, -0.5px);
+    }
+
+    .card ul li input[type="checkbox"]:checked+span {
+      text-decoration: line-through;
+      opacity: 0.6;
+    }
+
+    [x-cloak] {
+      display: none !important;
     }
   </style>
 </head>
 
 <body>
   <h1>Kanban Board</h1>
-  <div x-data="kanbanBoard">
+  <div x-data="{
+    ...kanbanBoard(),
+    isShortcutsModalOpen: false
+  }">
     <div class="toolbar">
       <button role="button" @click="reset">
         <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -529,6 +571,13 @@
           <path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z" />
         </svg>
         Carregar
+      </button>
+      <button role="button" @click="isShortcutsModalOpen = true">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M20 5H4c-1.1 0-1.99.9-1.99 2L2 17c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm-9 3h2v2h-2V8zm0 3h2v2h-2v-2zM8 8h2v2H8V8zm0 3h2v2H8v-2zm-1 2H5v-2h2v2zm0-3H5V8h2v2zm9 7H8v-2h8v2zm0-4h-2v-2h2v2zm0-3h-2V8h2v2z" />
+        </svg>
+        Atalhos
       </button>
       <input type="file" x-ref="uploadInput" accept=".json" style="display: none;" @change="uploadState($event)">
     </div>
@@ -557,7 +606,7 @@
                 </div>
                 <div class="title-area">
                   <span contenteditable="true" @blur="updateCardTitle(card.id, $event.target.textContent.trim())"
-                    @keydown.enter.prevent="handleTitleEnter($event, card)"
+                    @keydown.enter.prevent="$event.ctrlKey ? handleTaskCtrlEnter($event, card) : handleTitleEnter($event, card)"
                     @keydown.shift.prevent="cargMovingWithShift = card.id" @keyup.shift="cargMovingWithShift = null"
                     @keydown.shift.arrow-up.prevent="moveCard(card.id, 'up', $event)"
                     @keydown.shift.arrow-down.prevent="moveCard(card.id, 'down', $event)"
@@ -565,11 +614,11 @@
                     @keydown.shift.arrow-right.prevent="moveCard(card.id, 'right', $event)"
                     @keydown.alt.arrow-up.prevent="navigateCardTitles($event.target, 'up')"
                     @keydown.alt.arrow-down.prevent="navigateCardTitles($event.target, 'down')"
-                    @keydown.alt.arrow-left.prevent="navigateColumns($event.target, 'left')"
-                    @keydown.alt.arrow-right.prevent="navigateColumns($event.target, 'right')"
+                    @keydown.alt.arrow-left.prevent="navigateColumns($event.target, 'left', $event)"
+                    @keydown.alt.arrow-right.prevent="navigateColumns($event.target, 'right', $event)"
                     @keydown.arrow-up.prevent="navigateEditables($event.target, 'up', $event.altKey)"
                     @keydown.arrow-down.prevent="navigateEditables($event.target, 'down', $event.altKey)"
-                    x-text="card.title"></span>
+                    @keydown.delete.prevent="deleteCard(card.id)" x-text="card.title"></span>
                 </div>
                 <div class="buttons">
                   <button @click="createTaskAndFocus(card.id)" title="Adicionar tarefa">+</button>
@@ -590,13 +639,15 @@
                         @keydown.shift.arrow-down.prevent="moveCard(card.id, 'down', $event)"
                         @keydown.shift.arrow-left.prevent="moveCard(card.id, 'left', $event)"
                         @keydown.shift.arrow-right.prevent="moveCard(card.id, 'right', $event)"
+                        @keydown.ctrl.arrow-up.prevent="moveTask(card.id, index, 'up')"
+                        @keydown.ctrl.arrow-down.prevent="moveTask(card.id, index, 'down')"
                         @keydown.alt.arrow-up.prevent="navigateCardTitles($event.target, 'up')"
                         @keydown.alt.arrow-down.prevent="navigateCardTitles($event.target, 'down')"
-                        @keydown.alt.arrow-left.prevent="navigateColumns($event.target, 'left')"
-                        @keydown.alt.arrow-right.prevent="navigateColumns($event.target, 'right')"
+                        @keydown.alt.arrow-left.prevent="navigateColumns($event.target, 'left', $event)"
+                        @keydown.alt.arrow-right.prevent="navigateColumns($event.target, 'right', $event)"
                         @keydown.arrow-up.prevent="navigateEditables($event.target, 'up', $event.altKey)"
                         @keydown.arrow-down.prevent="navigateEditables($event.target, 'down', $event.altKey)"
-                        x-text="item.text"></span>
+                        @keydown.delete.prevent="deleteTask(card.id, index)" x-text="item.text"></span>
                       <button class="delete-task" @click="deleteTask(card.id, index)" title="Excluir tarefa">×</button>
                     </li>
                   </template>
@@ -607,7 +658,182 @@
         </div>
       </template>
     </div>
+
+    <!-- Modal de Atalhos -->
+    <div class="modal-overlay" x-cloak x-show="isShortcutsModalOpen" x-transition:enter="fade-enter"
+      x-transition:enter-start="fade-enter-start" x-transition:enter-end="fade-enter-end"
+      x-transition:leave="fade-leave" x-transition:leave-start="fade-leave-start"
+      x-transition:leave-end="fade-leave-end" @click="isShortcutsModalOpen = false">
+      <div class="modal-content" @click.stop>
+        <h2>Atalhos de Teclado</h2>
+
+        <h3>Navegação</h3>
+        <ul>
+          <li><kbd>↑</kbd> / <kbd>↓</kbd> - Navega entre elementos editáveis na mesma coluna</li>
+          <li><kbd>Alt</kbd> + <kbd>↑</kbd> / <kbd>↓</kbd> - Navega apenas entre títulos dos cards na mesma coluna</li>
+          <li><kbd>Alt</kbd> + <kbd>←</kbd> / <kbd>→</kbd> - Navega para o card na mesma posição na coluna adjacente
+          </li>
+        </ul>
+
+        <h3>Movimentação de Cards</h3>
+        <ul>
+          <li><kbd>Shift</kbd> + <kbd>↑</kbd> / <kbd>↓</kbd> - Move o card para cima/baixo na mesma coluna</li>
+          <li><kbd>Shift</kbd> + <kbd>←</kbd> / <kbd>→</kbd> - Move o card para a coluna da esquerda/direita mantendo a
+            mesma posição</li>
+        </ul>
+
+        <h3>Movimentação de Tarefas</h3>
+        <ul>
+          <li><kbd>Ctrl</kbd> + <kbd>↑</kbd> / <kbd>↓</kbd> - Move a tarefa para cima/baixo dentro do card</li>
+        </ul>
+
+        <h3>Edição</h3>
+        <ul>
+          <li><kbd>Enter</kbd> no título - Cria uma nova tarefa no topo do card</li>
+          <li><kbd>Ctrl</kbd> + <kbd>Enter</kbd> no título - Cria novo card abaixo do atual</li>
+          <li><kbd>Enter</kbd> em uma tarefa - Cria nova tarefa abaixo</li>
+          <li><kbd>Ctrl</kbd> + <kbd>Enter</kbd> em uma tarefa - Cria novo card abaixo do atual</li>
+          <li><kbd>Delete</kbd> no título - Exclui o card (com confirmação)</li>
+          <li><kbd>Delete</kbd> em uma tarefa - Exclui a tarefa imediatamente</li>
+        </ul>
+
+        <div class="modal-buttons">
+          <button @click="isShortcutsModalOpen = false">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path
+                d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" />
+            </svg>
+            Fechar
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
+
+  <style>
+    /* Estilo do modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background: #2d2d2d;
+      padding: 24px;
+      border-radius: 8px;
+      max-width: 600px;
+      width: 90%;
+      max-height: 90vh;
+      overflow-y: auto;
+    }
+
+    .modal-content h2 {
+      margin: 0 0 20px 0;
+      font-size: 24px;
+      color: #ffffff;
+    }
+
+    .modal-content h3 {
+      margin: 24px 0 12px 0;
+      font-size: 18px;
+      color: #dddddd;
+    }
+
+    .modal-content h3:first-of-type {
+      margin-top: 0;
+    }
+
+    .modal-content ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .modal-content li {
+      margin: 8px 0;
+      font-size: 14px;
+      color: #cccccc;
+    }
+
+    .modal-content kbd {
+      background: #1a1a1a;
+      border: 1px solid #4d4d4d;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-family: monospace;
+      font-size: 12px;
+      color: #ffffff;
+    }
+
+    .modal-buttons {
+      margin-top: 24px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .modal-buttons button {
+      background-color: #222222;
+      color: #ffffff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .modal-buttons button:hover {
+      background-color: #252525;
+    }
+
+    .modal-buttons button:active {
+      background-color: #313131;
+    }
+
+    .modal-buttons button svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .modal-buttons button path {
+      fill: currentColor;
+    }
+
+    /* Animações do modal */
+    .fade-enter {
+      transition: opacity 0.2s ease-out;
+    }
+
+    .fade-enter-start {
+      opacity: 0;
+    }
+
+    .fade-enter-end {
+      opacity: 1;
+    }
+
+    .fade-leave {
+      transition: opacity 0.2s ease-in;
+    }
+
+    .fade-leave-start {
+      opacity: 1;
+    }
+
+    .fade-leave-end {
+      opacity: 0;
+    }
+  </style>
 
   <script>
     document.addEventListener('alpine:init', () => {
@@ -618,6 +844,7 @@
         originalPosition: null,
         columnOverId: null,
         cargMovingWithShift: null,
+        isShortcutsModalOpen: false,
 
         init() {
           // Clickaway listener para salvar edições ao clicar fora
@@ -630,6 +857,13 @@
               !activeElement.contains(clickedElement) &&
               activeElement !== clickedElement) {
               activeElement.blur();
+            }
+          });
+
+          // Listener para fechar o modal com Esc
+          document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isShortcutsModalOpen) {
+              this.isShortcutsModalOpen = false;
             }
           });
         },
@@ -656,7 +890,7 @@
           });
         },
 
-        createTaskAndFocus(cardId, afterIndex = -1) {
+        createTaskAndFocus(cardId, afterIndex = -1, atTop = false) {
           const card = this.$store.kanban.cards.find(card => card.id === cardId);
           if (card) {
             const newTask = {
@@ -664,7 +898,9 @@
               checked: false
             };
 
-            if (afterIndex >= 0) {
+            if (atTop) {
+              card.items.unshift(newTask);
+            } else if (afterIndex >= 0) {
               card.items.splice(afterIndex + 1, 0, newTask);
             } else {
               card.items.push(newTask);
@@ -676,7 +912,7 @@
               const cardElement = document.querySelector(`[data-card-id="${cardId}"]`);
               if (cardElement) {
                 const tasks = cardElement.querySelectorAll('.card-content span[contenteditable]');
-                const newTaskElement = tasks[afterIndex + 1];
+                const newTaskElement = atTop ? tasks[0] : tasks[afterIndex + 1];
                 if (newTaskElement) {
                   newTaskElement.focus();
                 }
@@ -725,20 +961,29 @@
           if (card) {
             card.items.splice(taskIndex, 1);
             this.$store.kanban.saveState();
+
+            // Focar na próxima tarefa ou na anterior se não houver próxima
+            this.$nextTick(() => {
+              const cardElement = document.querySelector(`[data-card-id="${cardId}"]`);
+              if (cardElement) {
+                const tasks = cardElement.querySelectorAll('.card-content span[contenteditable]');
+                if (tasks.length > 0) {
+                  const nextTask = tasks[taskIndex] || tasks[taskIndex - 1];
+                  if (nextTask) {
+                    nextTask.focus();
+                  }
+                }
+              }
+            });
           }
         },
 
         handleDragStart(event, card) {
-          this.draggedCard = event.target;
-          this.draggedCardData = card;
-          this.sourceColumnId = card.status;
-          setTimeout(() => event.target.classList.add('dragging'), 0);
-        },
-
-        // Eu sei que isso é feio, mas eu não aguento mais ver o bug
-        repeat(func, times) {
-          for (let i = 0; i < times; i++) {
-            func();
+          if (Object.keys(event.target).length > 0) {
+            this.draggedCard = event.target;
+            this.draggedCardData = card;
+            this.sourceColumnId = card.status;
+            setTimeout(() => event.target.classList.add('dragging'), 0);
           }
         },
 
@@ -769,16 +1014,14 @@
             this.$store.kanban.saveState();
 
           } else {
-            // only update card position
-            console.log(columnId, this.columnOverId, card.id);
             const allCards = [...this.$store.kanban.cards];
             const allCardsInColumn = allCards.filter(kc => kc.status === columnId);
             const cardIndex = allCardsInColumn.findIndex(kc => kc.id === card.id);
             allCardsInColumn.splice(cardIndex, 1);
             allCardsInColumn.splice(newCardIndex, 0, card);
-            console.log('allCardsInColumn', newCardIndex);
-            this.$store.kanban.cards = [
-            ];
+            // Eu sei que isso é feio, mas eu não aguento mais ver o bug
+            // Portanto, eu vou limpar o estado e recriar o quadro
+            this.$store.kanban.cards = [];
             this.$nextTick(() => {
               this.$store.kanban.cards = [
                 ...allCards.filter(kc => kc.status !== columnId),
@@ -789,9 +1032,6 @@
 
           }
 
-
-          console.log('this.$store.kanban.cards', this.$store.kanban.cards);
-
           event.target.classList.remove('dragging');
           this.draggedCard = null;
           this.draggedCardData = null;
@@ -799,9 +1039,12 @@
         },
 
         handleDragOver(event, columnId) {
-          this.columnOverId = columnId;
           event.preventDefault();
-          if (!this.draggedCardData) return;
+
+          // Se não houver um card sendo arrastado, não fazer nada
+          if (!this.draggedCard || !this.draggedCardData) return;
+
+          this.columnOverId = columnId;
           const column = event.target.closest('.column');
           if (!column) return;
 
@@ -813,6 +1056,7 @@
           } else {
             column.appendChild(draggable);
           }
+
         },
 
         getDragAfterElement(column, y) {
@@ -894,7 +1138,7 @@
           }
         },
 
-        navigateColumns(element, direction) {
+        navigateColumns(element, direction, event) {
           const currentColumn = element.closest('.column');
           if (!currentColumn) return;
 
@@ -912,33 +1156,18 @@
 
           const nextColumn = allColumns[nextColumnIndex];
           if (nextColumn) {
-            // Obter a posição vertical do elemento atual
+            // Encontrar a posição atual do card
             const currentCard = element.closest('.card');
-            const currentCardRect = currentCard.getBoundingClientRect();
-            const currentCardCenterY = currentCardRect.top + currentCardRect.height / 2;
+            const cardsInCurrentColumn = Array.from(currentColumn.querySelectorAll('.card'));
+            const currentPosition = cardsInCurrentColumn.indexOf(currentCard);
 
-            // Encontrar o card mais próximo em altura na coluna adjacente
+            // Encontrar o card na mesma posição ou a mais próxima na nova coluna
             const cardsInNextColumn = Array.from(nextColumn.querySelectorAll('.card'));
-            let closestCard = null;
-            let closestDistance = Infinity;
+            const targetPosition = Math.min(currentPosition, cardsInNextColumn.length - 1);
 
-            cardsInNextColumn.forEach(card => {
-              const cardRect = card.getBoundingClientRect();
-              const cardCenterY = cardRect.top + cardRect.height / 2;
-
-              // Calcular a distância vertical entre o card atual e o elemento focado
-              const distance = Math.abs(cardCenterY - currentCardCenterY);
-
-              // Manter o card mais próximo
-              if (distance < closestDistance) {
-                closestDistance = distance;
-                closestCard = card;
-              }
-            });
-
-            // Se encontrou um card próximo, focar no título dele
-            if (closestCard) {
-              const titleElement = closestCard.querySelector('.title-area span');
+            if (cardsInNextColumn.length > 0 && targetPosition >= 0) {
+              const targetCard = cardsInNextColumn[targetPosition];
+              const titleElement = targetCard.querySelector('.title-area span');
               if (titleElement) {
                 titleElement.focus();
               }
@@ -1009,41 +1238,21 @@
 
             const newColumn = allColumns[newColumnIndex];
             if (newColumn) {
-              // Calcular a posição relativa do card na coluna original apenas na primeira vez
-              const currentCardElement = document.querySelector(`[data-card-id="${cardId}"]`);
-              const currentRect = currentCardElement.getBoundingClientRect();
-
-              // Se não temos uma posição original salva e o Alt está pressionado, salvar a posição
-              if (!this.originalPosition && event && event.altKey) {
-                const originalColumnRect = currentColumn.getBoundingClientRect();
-                this.originalPosition = {
-                  top: currentRect.top,
-                  height: currentRect.height,
-                  columnTop: originalColumnRect.top,
-                  columnHeight: originalColumnRect.height
-                };
-              }
-
-              // Usar a posição original se disponível, caso contrário calcular nova posição
-              let relativePosition;
-              if (this.originalPosition && event && event.altKey) {
-                relativePosition = (this.originalPosition.top - this.originalPosition.columnTop) / this.originalPosition.columnHeight;
-              } else {
-                const currentColumnRect = currentColumn.getBoundingClientRect();
-                relativePosition = (currentRect.top - currentColumnRect.top) / currentColumnRect.height;
-                this.originalPosition = null; // Limpar a posição original se Alt não está pressionado
-              }
+              // Encontrar a posição atual do card na coluna
+              const cardsInCurrentColumn = this.$store.kanban.cards.filter(c => c.status === card.status);
+              const currentPosition = cardsInCurrentColumn.indexOf(card);
 
               // Remover o card da estrutura de dados
               this.$store.kanban.cards = this.$store.kanban.cards.filter(c => c.id !== cardId);
               card.status = newColumn.id;
 
-              // Calcular a posição aproximada na nova coluna
+              // Pegar os cards da nova coluna
               const cardsInNewColumn = this.$store.kanban.cards.filter(c => c.status === newColumn.id);
-              const targetIndex = Math.floor(relativePosition * cardsInNewColumn.length);
 
-              // Inserir o card na posição calculada
+              // Usar a mesma posição ou a última posição disponível
+              const targetIndex = Math.min(currentPosition, cardsInNewColumn.length);
               cardsInNewColumn.splice(targetIndex, 0, card);
+
               this.$store.kanban.cards = [
                 ...this.$store.kanban.cards.filter(c => c.status !== newColumn.id),
                 ...cardsInNewColumn
@@ -1134,9 +1343,7 @@
         },
 
         handleTitleEnter(event, card) {
-          if (card.items.length === 0) {
-            this.createTaskAndFocus(card.id, -1);
-          }
+          this.createTaskAndFocus(card.id, -1, true);
         },
 
         handleTaskCtrlEnter(event, card) {
@@ -1166,6 +1373,33 @@
               const titleElement = cardElement.querySelector('.title-area span');
               if (titleElement) {
                 titleElement.focus();
+              }
+            }
+          });
+        },
+
+        moveTask(cardId, taskIndex, direction) {
+          const card = this.$store.kanban.cards.find(card => card.id === cardId);
+          if (!card || !card.items) return;
+
+          const newIndex = direction === 'up' ? taskIndex - 1 : taskIndex + 1;
+          if (newIndex < 0 || newIndex >= card.items.length) return;
+
+          // Trocar as tarefas de posição
+          const temp = card.items[taskIndex];
+          card.items[taskIndex] = card.items[newIndex];
+          card.items[newIndex] = temp;
+
+          this.$store.kanban.saveState();
+
+          // Manter o foco na tarefa movida
+          this.$nextTick(() => {
+            const cardElement = document.querySelector(`[data-card-id="${cardId}"]`);
+            if (cardElement) {
+              const tasks = cardElement.querySelectorAll('.card-content span[contenteditable]');
+              const movedTask = tasks[newIndex];
+              if (movedTask) {
+                movedTask.focus();
               }
             }
           });
