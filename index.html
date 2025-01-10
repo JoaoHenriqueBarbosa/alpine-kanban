@@ -500,6 +500,10 @@
     .toolbar button:hover {
       background-color: #3d3d3d;
     }
+
+    .outline {
+      outline: 2px solid #ffffff;
+    }
   </style>
 </head>
 
@@ -537,7 +541,8 @@
           </h2>
 
           <template x-for="card in $store.kanban.getCardsByColumn(column.id)" :key="card.id">
-            <div class="card" :data-card-id="card.id" draggable="true" @dragstart="handleDragStart($event, card)"
+            <div :class="{ 'card': true, 'outline': cargMovingWithShift === card.id }" :data-card-id="card.id"
+              draggable="true" @dragstart="handleDragStart($event, card)"
               @dragend="handleDragEnd($event, column.id, card)">
               <div class="card-header">
                 <div class="drag-handle">
@@ -553,6 +558,7 @@
                 <div class="title-area">
                   <span contenteditable="true" @blur="updateCardTitle(card.id, $event.target.textContent.trim())"
                     @keydown.enter.prevent="handleTitleEnter($event, card)"
+                    @keydown.shift.prevent="cargMovingWithShift = card.id" @keyup.shift="cargMovingWithShift = null"
                     @keydown.shift.arrow-up.prevent="moveCard(card.id, 'up', $event)"
                     @keydown.shift.arrow-down.prevent="moveCard(card.id, 'down', $event)"
                     @keydown.shift.arrow-left.prevent="moveCard(card.id, 'left', $event)"
@@ -579,6 +585,7 @@
                       <span contenteditable="true"
                         @blur="updateTaskText(card.id, index, $event.target.textContent.trim())"
                         @keydown.enter.prevent="$event.ctrlKey ? handleTaskCtrlEnter($event, card) : createTaskAndFocus(card.id, index)"
+                        @keydown.shift.prevent="cargMovingWithShift = card.id" @keyup.shift="cargMovingWithShift = null"
                         @keydown.shift.arrow-up.prevent="moveCard(card.id, 'up', $event)"
                         @keydown.shift.arrow-down.prevent="moveCard(card.id, 'down', $event)"
                         @keydown.shift.arrow-left.prevent="moveCard(card.id, 'left', $event)"
@@ -610,6 +617,7 @@
         sourceColumnId: null,
         originalPosition: null,
         columnOverId: null,
+        cargMovingWithShift: null,
 
         init() {
           // Clickaway listener para salvar edições ao clicar fora
