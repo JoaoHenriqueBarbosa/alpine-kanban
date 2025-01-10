@@ -25,7 +25,7 @@ Um quadro Kanban minimalista que roda diretamente no navegador, sem necessidade 
 - Mantendo `Alt` pressionado preserva a posição vertical relativa do card
 
 ### Edição
-- `Enter` no título vazio - Cria uma nova tarefa
+- `Enter` no título de um card sem tarefas - Cria uma nova tarefa
 - `Enter` em uma tarefa - Cria nova tarefa abaixo
 - `Ctrl + Enter` em uma tarefa - Cria novo card abaixo do atual
 
