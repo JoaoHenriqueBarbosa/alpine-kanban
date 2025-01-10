@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kanban Board</title>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  <script>
+    // Setup Alpine Store
+    document.addEventListener('alpine:init', () => {
+      Alpine.store('kanban', {
+        cards: [],
+        columns: [
+          { id: 'todo', title: 'A Fazer' },
+          { id: 'doing', title: 'Fazendo' },
+          { id: 'done', title: 'Feito' }
+        ],
+
+        init() {
+          this.loadState();
+        },
+
+        loadState() {
+          try {
+            const savedData = localStorage.getItem('kanbanState');
+            if (savedData) {
+              const data = JSON.parse(savedData);
+              this.cards = data.cards;
+              this.columns = data.columns;
+            }
+          } catch (e) {
+            console.error('Erro ao carregar dados do localStorage:', e);
+          }
+        },
+
+        saveState() {
+          try {
+            localStorage.setItem('kanbanState', JSON.stringify({
+              cards: this.cards,
+              columns: this.columns
+            }));
+          } catch (e) {
+            console.error('Erro ao salvar estado:', e);
+          }
+        },
+
+        generateId() {
+          return Math.random().toString(36).substr(2, 9);
+        },
+
+        getCardsByColumn(columnId) {
+          return this.cards.filter(card => card.status === columnId);
+        }
+      });
+    });
+  </script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #1a1a1a;
+      margin: 0;
+      padding: 20px;
+      color: #e0e0e0;
+    }
+
+    h1 {
+      text-align: center;
+      color: #ffffff;
+    }
+
+    .kanban {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin-top: 20px;
+      padding: 0 20px;
+    }
+
+    .column {
+      background-color: #2d2d2d;
+      border-radius: 8px;
+      padding: 16px;
+      width: 100%;
+      max-width: 350px;
+      min-height: 400px;
+    }
+
+    .column h2 {
+      text-align: left;
+      color: #ffffff;
+      margin-top: 0;
+      font-size: 16px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #3d3d3d;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .column h2 button {
+      background: none;
+      border: none;
+      color: #ffffff;
+      cursor: pointer;
+      font-size: 20px;
+      padding: 0 4px;
+    }
+
+    .card {
+      background-color: #3d3d3d;
+      border-radius: 4px;
+      margin: 10px 0;
+      color: #e0e0e0;
+      border: 1px solid #4d4d4d;
+      position: relative;
+    }
+
+    .card .card-header {
+      height: 32px;
+      background-color: #4d4d4d;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 8px;
+    }
+
+    .card .card-header .drag-handle {
+      display: flex;
+      align-items: center;
+      opacity: 0.5;
+      cursor: grab;
+    }
+
+    .card .card-header .drag-handle:hover {
+      opacity: 1;
+    }
+
+    .card .card-header .drag-handle svg {
+      width: 10px;
+      height: 16px;
+    }
+
+    .card .card-header .title-area {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex: 1;
+      margin: 0 8px;
+    }
+
+    .card .card-header span {
+      font-size: 14px;
+      color: #ffffff;
+      padding: 2px 4px;
+      border-radius: 4px;
+      cursor: text;
+      min-width: 60px;
+    }
+
+    .card .card-header span:hover {
+      background-color: #5d5d5d;
+    }
+
+    .card .card-header span:focus {
+      background-color: #5d5d5d;
+      outline: none;
+    }
+
+    .card .card-header .buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .card .card-header button {
+      background: none;
+      border: none;
+      color: #ffffff;
+      cursor: pointer;
+      font-size: 16px;
+      padding: 0 4px;
+      opacity: 0.7;
+    }
+
+    .card .card-header button:hover {
+      opacity: 1;
+    }
+
+    .card .card-header button.delete {
+      color: #ff4444;
+    }
+
+    .card h3 {
+      margin: 0;
+      font-size: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .card h3 .buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .card h3 button {
+      background: none;
+      border: none;
+      color: #ffffff;
+      cursor: pointer;
+      font-size: 16px;
+      padding: 0 4px;
+      opacity: 0.7;
+    }
+
+    .card h3 button:hover {
+      opacity: 1;
+    }
+
+    .card h3 button.delete {
+      color: #ff4444;
+    }
+
+    .card:active {
+      cursor: grabbing;
+    }
+
+    .card.dragging {
+      opacity: 0.5;
+      outline: 2px solid #ffffff;
+    }
+
+    .card ul {
+      list-style-type: none;
+      padding: 0;
+      margin: 10px 0 0 0;
+    }
+
+    .card ul li {
+      margin: 8px 0;
+      display: flex;
+      align-items: start;
+      color: #cccccc;
+      font-size: 14px;
+      padding-bottom: 6px;
+      position: relative;
+    }
+
+    .card ul li:not(:last-child) {
+      border-bottom: 1px solid #4d4d4d;
+    }
+
+    .card ul li input[type="checkbox"] {
+      margin-right: 8px;
+      accent-color: #1e2f50;
+      width: 12px;
+      height: 13px;
+      flex-shrink: 0;
+    }
+
+    .card ul li button.delete-task {
+      background: none;
+      border: none;
+      color: #ff4444;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 0 4px;
+      opacity: 0;
+      margin-left: 4px;
+    }
+
+    .card ul li:hover button.delete-task {
+      opacity: 0.7;
+    }
+
+    .card ul li button.delete-task:hover {
+      opacity: 1;
+    }
+
+    .card .card-content {
+      padding: 0 12px 0 12px;
+    }
+
+    footer {
+      text-align: right;
+      margin-top: 20px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      padding: 0 20px;
+    }
+
+    footer button {
+      background-color: #2d2d2d;
+      color: #ffffff;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    footer button:hover {
+      background-color: #3d3d3d;
+    }
+
+    footer button:active {
+      background-color: #4d4d4d;
+    }
+
+    footer button svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    footer button path {
+      fill: currentColor;
+    }
+
+    footer button[onclick="reset()"],
+    footer button[onclick="reset()"]:hover,
+    footer button[onclick="downloadState()"],
+    footer button[onclick="downloadState()"]:hover,
+    footer button[onclick="document.getElementById('uploadInput').click()"],
+    footer button[onclick="document.getElementById('uploadInput').click()"]:hover {
+      background-color: #2d2d2d;
+    }
+
+    footer button:hover {
+      background-color: #3d3d3d;
+    }
+
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal.active {
+      display: flex;
+    }
+
+    .modal-content {
+      background-color: #2d2d2d;
+      padding: 20px;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 500px;
+    }
+
+    .modal-content h3 {
+      margin-top: 0;
+      color: #ffffff;
+    }
+
+    .modal-content input[type="text"] {
+      width: 100%;
+      padding: 8px;
+      margin: 10px 0;
+      background-color: #3d3d3d;
+      border: 1px solid #4d4d4d;
+      color: #ffffff;
+      border-radius: 4px;
+    }
+
+    .modal-content .buttons {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 20px;
+    }
+
+    .modal-content button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .modal-content button.cancel {
+      background-color: #3d3d3d;
+      color: #ffffff;
+    }
+
+    .modal-content button.confirm {
+      background-color: #1e2f50;
+      color: #ffffff;
+    }
+
+    .card h3 span {
+      flex: 1;
+      padding: 2px 4px;
+      border-radius: 4px;
+      cursor: text;
+    }
+
+    .card h3 span:hover {
+      background-color: #4d4d4d;
+    }
+
+    .card h3 span:focus {
+      background-color: #4d4d4d;
+      outline: none;
+    }
+
+    .card ul li span {
+      flex: 1;
+      padding: 2px 4px;
+      border-radius: 4px;
+      cursor: text;
+    }
+
+    .card ul li span:hover {
+      background-color: #4d4d4d;
+    }
+
+    .card ul li span:focus {
+      background-color: #4d4d4d;
+      outline: none;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>Kanban Board</h1>
+  <div x-data="kanbanBoard">
+    <div class="kanban">
+      <template x-for="column in $store.kanban.columns" :key="column.id">
+        <div class="column" :id="column.id" @dragover.prevent="handleDragOver($event, column.id)">
+          <h2>
+            <span x-text="column.title"></span>
+            <button @click="createCard(column.id)">+</button>
+          </h2>
+
+          <template x-for="card in $store.kanban.getCardsByColumn(column.id)" :key="card.id">
+            <div class="card" :data-card-id="card.id" draggable="true" @dragstart="handleDragStart($event, card)"
+              @dragend="handleDragEnd($event, column.id, card)">
+              <div class="card-header">
+                <div class="drag-handle">
+                  <svg viewBox="0 0 12 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="3" cy="3" r="1.5" fill="#ffffff" />
+                    <circle cx="9" cy="3" r="1.5" fill="#ffffff" />
+                    <circle cx="3" cy="9" r="1.5" fill="#ffffff" />
+                    <circle cx="9" cy="9" r="1.5" fill="#ffffff" />
+                    <circle cx="3" cy="15" r="1.5" fill="#ffffff" />
+                    <circle cx="9" cy="15" r="1.5" fill="#ffffff" />
+                  </svg>
+                </div>
+                <div class="title-area">
+                  <span contenteditable="true" @blur="updateCardTitle(card.id, $event.target.textContent.trim())"
+                    @keydown.enter.prevent="handleTitleEnter($event, card)"
+                    @keydown.shift.arrow-up.prevent="moveCard(card.id, 'up', $event)"
+                    @keydown.shift.arrow-down.prevent="moveCard(card.id, 'down', $event)"
+                    @keydown.shift.arrow-left.prevent="moveCard(card.id, 'left', $event)"
+                    @keydown.shift.arrow-right.prevent="moveCard(card.id, 'right', $event)"
+                    @keydown.alt.arrow-up.prevent="navigateCardTitles($event.target, 'up')"
+                    @keydown.alt.arrow-down.prevent="navigateCardTitles($event.target, 'down')"
+                    @keydown.alt.arrow-left.prevent="navigateColumns($event.target, 'left')"
+                    @keydown.alt.arrow-right.prevent="navigateColumns($event.target, 'right')"
+                    @keydown.arrow-up.prevent="navigateEditables($event.target, 'up', $event.altKey)"
+                    @keydown.arrow-down.prevent="navigateEditables($event.target, 'down', $event.altKey)"
+                    x-text="card.title"></span>
+                </div>
+                <div class="buttons">
+                  <button @click="createTaskAndFocus(card.id)" title="Adicionar tarefa">+</button>
+                  <button class="delete" @click="deleteCard(card.id)" title="Excluir card">×</button>
+                </div>
+              </div>
+              <div class="card-content">
+                <ul>
+                  <template x-for="(item, index) in card.items" :key="index">
+                    <li>
+                      <input type="checkbox" :checked="item.checked"
+                        @change="updateTaskCheck(card.id, index, $event.target.checked)">
+                      <span contenteditable="true"
+                        @blur="updateTaskText(card.id, index, $event.target.textContent.trim())"
+                        @keydown.enter.prevent="$event.ctrlKey ? handleTaskCtrlEnter($event, card) : createTaskAndFocus(card.id, index)"
+                        @keydown.shift.arrow-up.prevent="moveCard(card.id, 'up', $event)"
+                        @keydown.shift.arrow-down.prevent="moveCard(card.id, 'down', $event)"
+                        @keydown.shift.arrow-left.prevent="moveCard(card.id, 'left', $event)"
+                        @keydown.shift.arrow-right.prevent="moveCard(card.id, 'right', $event)"
+                        @keydown.alt.arrow-up.prevent="navigateCardTitles($event.target, 'up')"
+                        @keydown.alt.arrow-down.prevent="navigateCardTitles($event.target, 'down')"
+                        @keydown.alt.arrow-left.prevent="navigateColumns($event.target, 'left')"
+                        @keydown.alt.arrow-right.prevent="navigateColumns($event.target, 'right')"
+                        @keydown.arrow-up.prevent="navigateEditables($event.target, 'up', $event.altKey)"
+                        @keydown.arrow-down.prevent="navigateEditables($event.target, 'down', $event.altKey)"
+                        x-text="item.text"></span>
+                      <button class="delete-task" @click="deleteTask(card.id, index)" title="Excluir tarefa">×</button>
+                    </li>
+                  </template>
+                </ul>
+              </div>
+            </div>
+          </template>
+        </div>
+      </template>
+    </div>
+    <footer>
+      <button role="button" @click="reset">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M12 4V2L8 6l4 4V8c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0020 14c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 004 14c0 4.42 3.58 8 8 8v2l4-4-4-4v2z" />
+        </svg>
+        Resetar
+      </button>
+      <button role="button" @click="downloadState">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z" />
+        </svg>
+        Baixar
+      </button>
+      <button role="button" @click="$refs.uploadInput.click()">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z" />
+        </svg>
+        Carregar
+      </button>
+      <input type="file" x-ref="uploadInput" accept=".json" style="display: none;" @change="uploadState($event)">
+    </footer>
+  </div>
+
+  <script>
+    document.addEventListener('alpine:init', () => {
+      Alpine.data('kanbanBoard', () => ({
+        draggedCard: null,
+        draggedCardData: null,
+        sourceColumnId: null,
+        originalPosition: null,
+        columnOverId: null,
+
+        init() {
+          // Clickaway listener para salvar edições ao clicar fora
+          document.addEventListener('click', (e) => {
+            const activeElement = document.activeElement;
+            const clickedElement = e.target;
+
+            if (activeElement &&
+              activeElement.getAttribute('contenteditable') === 'true' &&
+              !activeElement.contains(clickedElement) &&
+              activeElement !== clickedElement) {
+              activeElement.blur();
+            }
+          });
+        },
+
+        createCard(columnId) {
+          const newCard = {
+            id: this.$store.kanban.generateId(),
+            status: columnId,
+            title: '',
+            items: []
+          };
+
+          this.$store.kanban.cards.push(newCard);
+          this.$store.kanban.saveState();
+
+          this.$nextTick(() => {
+            const cardElement = document.querySelector(`[data-card-id="${newCard.id}"]`);
+            if (cardElement) {
+              const titleElement = cardElement.querySelector('.title-area span');
+              if (titleElement) {
+                titleElement.focus();
+              }
+            }
+          });
+        },
+
+        createTaskAndFocus(cardId, afterIndex = -1) {
+          const card = this.$store.kanban.cards.find(card => card.id === cardId);
+          if (card) {
+            const newTask = {
+              text: '',
+              checked: false
+            };
+
+            if (afterIndex >= 0) {
+              card.items.splice(afterIndex + 1, 0, newTask);
+            } else {
+              card.items.push(newTask);
+            }
+
+            this.$store.kanban.saveState();
+
+            this.$nextTick(() => {
+              const cardElement = document.querySelector(`[data-card-id="${cardId}"]`);
+              if (cardElement) {
+                const tasks = cardElement.querySelectorAll('.card-content span[contenteditable]');
+                const newTaskElement = tasks[afterIndex + 1];
+                if (newTaskElement) {
+                  newTaskElement.focus();
+                }
+              }
+            });
+          }
+        },
+
+        updateCardTitle(cardId, newTitle) {
+          if (!newTitle) return;
+
+          const card = this.$store.kanban.cards.find(card => card.id === cardId);
+          if (card) {
+            card.title = newTitle;
+            this.$store.kanban.saveState();
+          }
+        },
+
+        updateTaskText(cardId, taskIndex, newText) {
+          if (!newText) return;
+
+          const card = this.$store.kanban.cards.find(card => card.id === cardId);
+          if (card && card.items[taskIndex]) {
+            card.items[taskIndex].text = newText;
+            this.$store.kanban.saveState();
+          }
+        },
+
+        updateTaskCheck(cardId, taskIndex, checked) {
+          const card = this.$store.kanban.cards.find(card => card.id === cardId);
+          if (card && card.items[taskIndex]) {
+            card.items[taskIndex].checked = checked;
+            this.$store.kanban.saveState();
+          }
+        },
+
+        deleteCard(cardId) {
+          if (confirm('Tem certeza que deseja excluir este card?')) {
+            this.$store.kanban.cards = this.$store.kanban.cards.filter(card => card.id !== cardId);
+            this.$store.kanban.saveState();
+          }
+        },
+
+        deleteTask(cardId, taskIndex) {
+          const card = this.$store.kanban.cards.find(card => card.id === cardId);
+          if (card) {
+            card.items.splice(taskIndex, 1);
+            this.$store.kanban.saveState();
+          }
+        },
+
+        handleDragStart(event, card) {
+          this.draggedCard = event.target;
+          this.draggedCardData = card;
+          this.sourceColumnId = card.status;
+          setTimeout(() => event.target.classList.add('dragging'), 0);
+        },
+
+        // Eu sei que isso é feio, mas eu não aguento mais ver o bug
+        repeat(func, times) {
+          for (let i = 0; i < times; i++) {
+            func();
+          }
+        },
+
+        handleDragEnd(event, columnId, card) {
+          if (!this.draggedCardData) return;
+
+          const column = event.target.closest('.column');
+          if (!column) return;
+
+          // get card new position on column
+          const newColumn = document.querySelector(`#${this.columnOverId}`);
+          const newColumnCards = newColumn.querySelectorAll('.card');
+          const newCardIndex = Array.from(newColumnCards).indexOf(event.target);
+
+          if (columnId !== this.columnOverId) {
+            // remove card from old column in the state
+            this.$store.kanban.cards = this.$store.kanban.cards.map(kc => kc.id === card.id ? { ...kc, status: this.columnOverId } : kc);
+
+            // Remover o card da posição atual e inserir na nova posição
+            const updatedCards = this.$store.kanban.cards.filter(kc => kc.id !== card.id);
+            const newColumnCards = updatedCards.filter(kc => kc.status === this.columnOverId);
+            newColumnCards.splice(newCardIndex, 0, { ...card, status: this.columnOverId });
+
+            this.$store.kanban.cards = [
+              ...updatedCards.filter(kc => kc.status !== this.columnOverId),
+              ...newColumnCards
+            ];
+            this.$store.kanban.saveState();
+
+          } else {
+            // only update card position
+            console.log(columnId, this.columnOverId, card.id);
+            const allCards = [...this.$store.kanban.cards];
+            const allCardsInColumn = allCards.filter(kc => kc.status === columnId);
+            const cardIndex = allCardsInColumn.findIndex(kc => kc.id === card.id);
+            allCardsInColumn.splice(cardIndex, 1);
+            allCardsInColumn.splice(newCardIndex, 0, card);
+            console.log('allCardsInColumn', newCardIndex);
+            this.$store.kanban.cards = [
+            ];
+            this.$nextTick(() => {
+              this.$store.kanban.cards = [
+                ...allCards.filter(kc => kc.status !== columnId),
+                ...allCardsInColumn
+              ];
+              this.$store.kanban.saveState();
+            });
+
+          }
+
+
+          console.log('this.$store.kanban.cards', this.$store.kanban.cards);
+
+          event.target.classList.remove('dragging');
+          this.draggedCard = null;
+          this.draggedCardData = null;
+          this.sourceColumnId = null;
+        },
+
+        handleDragOver(event, columnId) {
+          this.columnOverId = columnId;
+          event.preventDefault();
+          if (!this.draggedCardData) return;
+          const column = event.target.closest('.column');
+          if (!column) return;
+
+          const afterElement = this.getDragAfterElement(column, event.clientY);
+          const draggable = this.draggedCard;
+
+          if (afterElement) {
+            column.insertBefore(draggable, afterElement);
+          } else {
+            column.appendChild(draggable);
+          }
+        },
+
+        getDragAfterElement(column, y) {
+          const draggableElements = [...column.querySelectorAll('.card:not(.dragging)')];
+
+          return draggableElements.reduce((closest, child) => {
+            const box = child.getBoundingClientRect();
+            const offset = y - box.top - box.height / 2;
+
+            if (offset < 0 && offset > closest.offset) {
+              return { offset: offset, element: child };
+            } else {
+              return closest;
+            }
+          }, { offset: Number.NEGATIVE_INFINITY }).element;
+        },
+
+        navigateEditables(element, direction, isAlt = false) {
+          const column = element.closest('.column');
+          if (!column) return;
+
+          // Se Alt está pressionado, navegar apenas entre títulos dos cards
+          if (isAlt) {
+            const cardTitles = Array.from(column.querySelectorAll('.card-header .title-area span'));
+            const currentCard = element.closest('.card');
+            let currentIndex;
+
+            // Se estamos em uma tarefa, encontrar o título do card pai
+            if (element.closest('.card-content')) {
+              currentIndex = cardTitles.findIndex(title =>
+                title.closest('.card').dataset.cardId === currentCard.dataset.cardId
+              );
+            } else {
+              currentIndex = cardTitles.indexOf(element);
+            }
+
+            let nextIndex;
+            if (direction === 'up') {
+              nextIndex = currentIndex - 1;
+            } else if (direction === 'down') {
+              nextIndex = currentIndex + 1;
+            }
+
+            // Circular a navegação
+            if (nextIndex < 0) {
+              nextIndex = cardTitles.length - 1;
+            } else if (nextIndex >= cardTitles.length) {
+              nextIndex = 0;
+            }
+
+            const nextElement = cardTitles[nextIndex];
+            if (nextElement) {
+              nextElement.focus();
+            }
+          }
+          // Se Alt não está pressionado, navegar entre todos os elementos editáveis da coluna
+          else {
+            const editables = Array.from(column.querySelectorAll('[contenteditable="true"]'));
+            const currentIndex = editables.indexOf(element);
+            let nextIndex;
+
+            if (direction === 'up') {
+              nextIndex = currentIndex - 1;
+            } else if (direction === 'down') {
+              nextIndex = currentIndex + 1;
+            }
+
+            // Circular a navegação
+            if (nextIndex < 0) {
+              nextIndex = editables.length - 1;
+            } else if (nextIndex >= editables.length) {
+              nextIndex = 0;
+            }
+
+            const nextElement = editables[nextIndex];
+            if (nextElement) {
+              nextElement.focus();
+            }
+          }
+        },
+
+        navigateColumns(element, direction) {
+          const currentColumn = element.closest('.column');
+          if (!currentColumn) return;
+
+          const allColumns = Array.from(document.querySelectorAll('.column'));
+          const currentColumnIndex = allColumns.indexOf(currentColumn);
+          let nextColumnIndex;
+
+          if (direction === 'left') {
+            nextColumnIndex = currentColumnIndex - 1;
+            if (nextColumnIndex < 0) nextColumnIndex = allColumns.length - 1;
+          } else if (direction === 'right') {
+            nextColumnIndex = currentColumnIndex + 1;
+            if (nextColumnIndex >= allColumns.length) nextColumnIndex = 0;
+          }
+
+          const nextColumn = allColumns[nextColumnIndex];
+          if (nextColumn) {
+            // Obter a posição vertical do elemento atual
+            const currentCard = element.closest('.card');
+            const currentCardRect = currentCard.getBoundingClientRect();
+            const currentCardCenterY = currentCardRect.top + currentCardRect.height / 2;
+
+            // Encontrar o card mais próximo em altura na coluna adjacente
+            const cardsInNextColumn = Array.from(nextColumn.querySelectorAll('.card'));
+            let closestCard = null;
+            let closestDistance = Infinity;
+
+            cardsInNextColumn.forEach(card => {
+              const cardRect = card.getBoundingClientRect();
+              const cardCenterY = cardRect.top + cardRect.height / 2;
+
+              // Calcular a distância vertical entre o card atual e o elemento focado
+              const distance = Math.abs(cardCenterY - currentCardCenterY);
+
+              // Manter o card mais próximo
+              if (distance < closestDistance) {
+                closestDistance = distance;
+                closestCard = card;
+              }
+            });
+
+            // Se encontrou um card próximo, focar no título dele
+            if (closestCard) {
+              const titleElement = closestCard.querySelector('.title-area span');
+              if (titleElement) {
+                titleElement.focus();
+              }
+            } else {
+              // Se não houver cards na coluna, criar um novo card
+              this.createCard(nextColumn.id);
+            }
+          }
+        },
+
+        navigateCardTitles(element, direction) {
+          const column = element.closest('.column');
+          if (!column) return;
+
+          const cardTitles = Array.from(column.querySelectorAll('.card-header .title-area span'));
+          const currentCard = element.closest('.card');
+          let currentIndex;
+
+          if (element.closest('.card-content')) {
+            currentIndex = cardTitles.findIndex(title =>
+              title.closest('.card').dataset.cardId === currentCard.dataset.cardId
+            );
+          } else {
+            currentIndex = cardTitles.indexOf(element);
+          }
+
+          let nextIndex;
+          if (direction === 'up') {
+            nextIndex = currentIndex - 1;
+            if (nextIndex < 0) nextIndex = cardTitles.length - 1;
+          } else if (direction === 'down') {
+            nextIndex = currentIndex + 1;
+            if (nextIndex >= cardTitles.length) nextIndex = 0;
+          }
+
+          const nextElement = cardTitles[nextIndex];
+          if (nextElement) {
+            nextElement.focus();
+          }
+        },
+
+        moveCard(cardId, direction) {
+          const card = this.$store.kanban.cards.find(card => card.id === cardId);
+          if (!card) return;
+
+          const currentColumn = document.querySelector(`#${card.status}`);
+          if (!currentColumn) return;
+
+          const allColumns = Array.from(document.querySelectorAll('.column'));
+          const currentColumnIndex = allColumns.indexOf(currentColumn);
+          const cardsInCurrentColumn = this.$store.kanban.cards.filter(c => c.status === card.status);
+          const cardIndex = cardsInCurrentColumn.indexOf(card);
+
+          if (direction === 'up' || direction === 'down') {
+            const newIndex = direction === 'up' ? cardIndex - 1 : cardIndex + 1;
+            if (newIndex >= 0 && newIndex < cardsInCurrentColumn.length) {
+              cardsInCurrentColumn.splice(cardIndex, 1);
+              cardsInCurrentColumn.splice(newIndex, 0, card);
+              this.$store.kanban.cards = [
+                ...this.$store.kanban.cards.filter(c => c.status !== card.status),
+                ...cardsInCurrentColumn
+              ];
+            }
+          } else if (direction === 'left' || direction === 'right') {
+            const newColumnIndex = direction === 'left'
+              ? (currentColumnIndex - 1 + allColumns.length) % allColumns.length
+              : (currentColumnIndex + 1) % allColumns.length;
+
+            const newColumn = allColumns[newColumnIndex];
+            if (newColumn) {
+              // Calcular a posição relativa do card na coluna original apenas na primeira vez
+              const currentCardElement = document.querySelector(`[data-card-id="${cardId}"]`);
+              const currentRect = currentCardElement.getBoundingClientRect();
+
+              // Se não temos uma posição original salva e o Alt está pressionado, salvar a posição
+              if (!this.originalPosition && event && event.altKey) {
+                const originalColumnRect = currentColumn.getBoundingClientRect();
+                this.originalPosition = {
+                  top: currentRect.top,
+                  height: currentRect.height,
+                  columnTop: originalColumnRect.top,
+                  columnHeight: originalColumnRect.height
+                };
+              }
+
+              // Usar a posição original se disponível, caso contrário calcular nova posição
+              let relativePosition;
+              if (this.originalPosition && event && event.altKey) {
+                relativePosition = (this.originalPosition.top - this.originalPosition.columnTop) / this.originalPosition.columnHeight;
+              } else {
+                const currentColumnRect = currentColumn.getBoundingClientRect();
+                relativePosition = (currentRect.top - currentColumnRect.top) / currentColumnRect.height;
+                this.originalPosition = null; // Limpar a posição original se Alt não está pressionado
+              }
+
+              // Remover o card da estrutura de dados
+              this.$store.kanban.cards = this.$store.kanban.cards.filter(c => c.id !== cardId);
+              card.status = newColumn.id;
+
+              // Calcular a posição aproximada na nova coluna
+              const cardsInNewColumn = this.$store.kanban.cards.filter(c => c.status === newColumn.id);
+              const targetIndex = Math.floor(relativePosition * cardsInNewColumn.length);
+
+              // Inserir o card na posição calculada
+              cardsInNewColumn.splice(targetIndex, 0, card);
+              this.$store.kanban.cards = [
+                ...this.$store.kanban.cards.filter(c => c.status !== newColumn.id),
+                ...cardsInNewColumn
+              ];
+            }
+          }
+
+          this.$store.kanban.saveState();
+
+          this.$nextTick(() => {
+            const cardElement = document.querySelector(`[data-card-id="${cardId}"]`);
+            if (cardElement) {
+              const titleElement = cardElement.querySelector('.title-area span');
+              if (titleElement) {
+                titleElement.focus();
+              }
+            }
+          });
+        },
+
+        reset() {
+          if (!confirm('Tem certeza que deseja limpar o quadro? Todos os cards serão removidos.')) {
+            return;
+          }
+
+          this.$store.kanban.cards = [];
+          this.$store.kanban.saveState();
+
+          const newCard = {
+            id: this.$store.kanban.generateId(),
+            status: 'todo',
+            title: '',
+            items: []
+          };
+
+          this.$store.kanban.cards.push(newCard);
+          this.$store.kanban.saveState();
+
+          this.$nextTick(() => {
+            const cardElement = document.querySelector(`[data-card-id="${newCard.id}"]`);
+            if (cardElement) {
+              const titleElement = cardElement.querySelector('.title-area span');
+              if (titleElement) {
+                titleElement.focus();
+              }
+            }
+          });
+        },
+
+        downloadState() {
+          const data = JSON.stringify({
+            cards: this.$store.kanban.cards,
+            columns: this.$store.kanban.columns
+          }, null, 2);
+          const blob = new Blob([data], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `kanban-${new Date().toISOString().split('T')[0]}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        },
+
+        uploadState(event) {
+          const file = event.target.files[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            try {
+              const data = JSON.parse(e.target.result);
+
+              if (!data.cards || !data.columns || !Array.isArray(data.cards) || !Array.isArray(data.columns)) {
+                throw new Error('Formato de arquivo inválido');
+              }
+
+              this.$store.kanban.cards = data.cards;
+              this.$store.kanban.columns = data.columns;
+              this.$store.kanban.saveState();
+            } catch (error) {
+              alert('Erro ao carregar o arquivo: ' + error.message);
+            }
+          };
+          reader.readAsText(file);
+          event.target.value = '';
+        },
+
+        handleTitleEnter(event, card) {
+          if (card.items.length === 0) {
+            this.createTaskAndFocus(card.id, -1);
+          }
+        },
+
+        handleTaskCtrlEnter(event, card) {
+          // Encontrar o índice do card atual
+          const cardsInColumn = this.$store.kanban.cards.filter(c => c.status === card.status);
+          const currentIndex = cardsInColumn.indexOf(card);
+
+          // Criar novo card após o atual
+          const newCard = {
+            id: this.$store.kanban.generateId(),
+            status: card.status,
+            title: '',
+            items: []
+          };
+
+          // Inserir o novo card após o atual
+          const allCards = this.$store.kanban.cards.filter(c => c.status !== card.status);
+          const columnCards = this.$store.kanban.cards.filter(c => c.status === card.status);
+          columnCards.splice(currentIndex + 1, 0, newCard);
+          this.$store.kanban.cards = [...allCards, ...columnCards];
+          this.$store.kanban.saveState();
+
+          // Focar no título do novo card
+          this.$nextTick(() => {
+            const cardElement = document.querySelector(`[data-card-id="${newCard.id}"]`);
+            if (cardElement) {
+              const titleElement = cardElement.querySelector('.title-area span');
+              if (titleElement) {
+                titleElement.focus();
+              }
+            }
+          });
+        }
+      }));
+    });
+  </script>
+</body>
+
+</html>
