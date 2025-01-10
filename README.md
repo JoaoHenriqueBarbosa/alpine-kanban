@@ -17,17 +17,22 @@ Um quadro Kanban minimalista que roda diretamente no navegador, sem necessidade 
 ### Navegação
 - `↑` / `↓` - Navega entre elementos editáveis na mesma coluna
 - `Alt + ↑` / `Alt + ↓` - Navega apenas entre títulos dos cards na mesma coluna
-- `Alt + ←` / `Alt + →` - Navega para o card mais próximo na coluna adjacente
+- `Alt + ←` / `Alt + →` - Navega para o card na mesma posição na coluna adjacente
 
 ### Movimentação de Cards
 - `Shift + ↑` / `Shift + ↓` - Move o card para cima/baixo na mesma coluna
-- `Shift + ←` / `Shift + →` - Move o card para a coluna da esquerda/direita
-- Mantendo `Alt` pressionado preserva a posição vertical relativa do card
+- `Shift + ←` / `Shift + →` - Move o card para a coluna da esquerda/direita mantendo a mesma posição
+
+### Movimentação de Tarefas
+- `Ctrl + ↑` / `Ctrl + ↓` - Move a tarefa para cima/baixo dentro do card
 
 ### Edição
-- `Enter` no título de um card sem tarefas - Cria uma nova tarefa
+- `Enter` no título - Cria uma nova tarefa no topo do card
+- `Ctrl + Enter` no título - Cria novo card abaixo do atual
 - `Enter` em uma tarefa - Cria nova tarefa abaixo
 - `Ctrl + Enter` em uma tarefa - Cria novo card abaixo do atual
+- `Delete` no título - Exclui o card (com confirmação)
+- `Delete` em uma tarefa - Exclui a tarefa imediatamente
 
 ## Como usar
 
